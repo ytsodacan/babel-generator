@@ -5,51 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Library of Babel - Custom Path Generator</title>
     <style>
-        body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
-        .input-group { margin-bottom: 20px; }
-        .config-group { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 20px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; margin-top: 10px; }
-        input[type="text"], input[type="number"], textarea { width: 100%; padding: 8px; box-sizing: border-box; }
-        .output { 
-            margin-top: 20px; 
-            padding: 15px;
-            background: #eef4ff; 
-            border: 1px solid #c2d6ff;
-            border-radius: 4px;
-            word-break: break-all; 
-            font-family: monospace; 
-            font-size: 1.1em;
-            min-height: 20px;
-        }
+        body { font-family: Courier, monospace; padding: 30px; max-width: 900px; margin: auto; background-color: #121212; color: #e0e0e0; }
+        h2, h3 { font-weight: normal; letter-spacing: 1px; color: #ffffff; border-bottom: 1px dashed #333; padding-bottom: 5px; }
+        .input-group, .config-group { margin-bottom: 25px; }
+        .config-group { background: #1a1a1a; padding: 20px; border: 1px solid #333; border-radius: 0px; }
+        label { display: block; margin-bottom: 5px; margin-top: 15px; font-size: 0.9em; color: #aaaaaa; }
+        input[type="text"], input[type="number"], textarea, input[type="file"] { width: 100%; padding: 10px; box-sizing: border-box; background: #222; border: 1px solid #444; color: #fff; font-family: Courier, monospace; }
+        input[type="text"]:focus, input[type="number"]:focus, textarea:focus { border-color: #888; outline: none; }
+        .output-box { margin-top: 25px; }
+        .output { padding: 20px; background: #1e2530; border: 1px solid #3b485c; color: #64b5f6; word-break: break-all; font-family: Courier, monospace; font-size: 1.1em; min-height: 24px; white-space: pre-wrap; }
+        .decode-output { background: #251e1e; border: 1px solid #5c3b3b; color: #f66464; }
+        .flex-container { display: flex; gap: 20px; }
+        .flex-child { flex: 1; }
+        @media (max-width: 600px) { .flex-container { flex-direction: column; } }
     </style>
 </head>
 <body>
-    <h2>Generate Path</h2>
+    <h2>Library of Babel Generator / Decoder</h2>
     
     <div class="config-group">
         <h3>Configuration</h3>
-        
-        <label for="alphabetConfig">Alphabet string (Calculates length automatically):</label>
-        <input type="text" id="alphabetConfig" value="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789! &()-_+">
-        
+        <label for="alphabetConfig">Alphabet string:</label>
+        <input type="text" id="alphabetConfig" value="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789! &()-_+[^]=">
         <label for="maxLengthConfig">Max Name Length:</label>
         <input type="number" id="maxLengthConfig" value="2" min="1">
     </div>
 
-    <div class="input-group">
-        <h3>From Text</h3>
-        <textarea id="textInput" rows="4" placeholder="Type something here..."></textarea>
-    </div>
-
-    <div class="input-group">
-        <h3>From File</h3>
-        <input type="file" id="fileInput">
+    <div class="flex-container">
+        <div class="flex-child">
+            <h3>Encode Input</h3>
+            <div class="input-group">
+                <label for="textInput">From Text:</label>
+                <textarea id="textInput" rows="4" placeholder="Type text to convert to path..."></textarea>
+            </div>
+            <div class="input-group">
+                <label for="fileInput">From File:</label>
+                <input type="file" id="fileInput">
+            </div>
+        </div>
+        
+        <div class="flex-child">
+            <h3>Decode Input</h3>
+            <div class="input-group">
+                <label for="pathInput">From Path:</label>
+                <textarea id="pathInput" rows="4" placeholder="/AAAA/BBBB..."></textarea>
+            </div>
+        </div>
     </div>
     
-    <div class="output" id="result">Waiting for input...</div>
+    <div class="output-box">
+        <h3>Generated Path</h3>
+        <div class="output" id="result">Waiting for input...</div>
+    </div>
+
+    <div class="output-box">
+        <h3>Decoded Content</h3>
+        <div class="output decode-output" id="decodeResult">Waiting for path...</div>
+    </div>
 
     <script>
-        // Store current bytes to allow dynamic re-calculation if config changes
         let currentBytes = null;
 
         function updateResult() {
@@ -57,31 +71,25 @@
                 document.getElementById('result').innerText = "Waiting for input...";
                 return;
             }
-
-            // Fetch live config values
             const alphabetStr = document.getElementById('alphabetConfig').value;
             if (alphabetStr.length === 0) {
                 document.getElementById('result').innerText = "Error: Alphabet cannot be empty.";
                 return;
             }
-
             const alphabet = alphabetStr.split('');
             const BABEL_ALPHABET_LENGTH = BigInt(alphabet.length);
             const BABEL_MAX_NAME_LENGTH = BigInt(document.getElementById('maxLengthConfig').value);
             const BABEL_DIRECTORY_OBJECTS = BABEL_ALPHABET_LENGTH ** BABEL_MAX_NAME_LENGTH;
 
-            // Calculate path
             let index = 0n;
             for (let i = 0; i < currentBytes.length; i++) {
                 index += (BigInt(currentBytes[i]) + 1n) * (256n ** BigInt(i));
             }
 
             let path = "";
-
             while (index > 0n) {
                 index--;
                 let handle = index % BABEL_DIRECTORY_OBJECTS;
-                
                 for (let i = 0n; i < BABEL_MAX_NAME_LENGTH; i++) {
                     path = alphabet[Number(handle % BABEL_ALPHABET_LENGTH)] + path;
                     handle /= BABEL_ALPHABET_LENGTH;
@@ -89,47 +97,96 @@
                 path = "/" + path;
                 index /= BABEL_DIRECTORY_OBJECTS;
             }
-
             document.getElementById('result').innerText = path === "" ? "/" : path;
         }
 
-        // Event Listeners for Configuration Changes
-        document.getElementById('alphabetConfig').addEventListener('input', updateResult);
-        document.getElementById('maxLengthConfig').addEventListener('input', updateResult);
+        function updateDecode() {
+            const path = document.getElementById('pathInput').value.trim();
+            if (!path || path === "/") {
+                document.getElementById('decodeResult').innerText = "Waiting for path...";
+                return;
+            }
+            const alphabetStr = document.getElementById('alphabetConfig').value;
+            if (alphabetStr.length === 0) {
+                document.getElementById('decodeResult').innerText = "Error: Alphabet cannot be empty.";
+                return;
+            }
+            const alphabet = alphabetStr.split('');
+            const BABEL_ALPHABET_LENGTH = BigInt(alphabet.length);
+            const BABEL_MAX_NAME_LENGTH = BigInt(document.getElementById('maxLengthConfig').value);
+            const BABEL_DIRECTORY_OBJECTS = BABEL_ALPHABET_LENGTH ** BABEL_MAX_NAME_LENGTH;
 
-        // Event Listener for Text Input
+            const segments = path.split('/').filter(s => s.length > 0);
+            let index = 0n;
+            let multiplier = 1n;
+
+            for (let s = segments.length - 1; s >= 0; s--) {
+                const segment = segments[s];
+                if (BigInt(segment.length) !== BABEL_MAX_NAME_LENGTH) {
+                    document.getElementById('decodeResult').innerText = "Error: Segment length does not match configuration.";
+                    return;
+                }
+                let handle = 0n;
+                let segmentMultiplier = 1n;
+                for (let i = segment.length - 1; i >= 0; i--) {
+                    const char = segment[i];
+                    const charIndex = alphabet.indexOf(char);
+                    if (charIndex === -1) {
+                        document.getElementById('decodeResult').innerText = `Error: Character '${char}' not found in configuration alphabet.`;
+                        return;
+                    }
+                    handle += BigInt(charIndex) * segmentMultiplier;
+                    segmentMultiplier *= BABEL_ALPHABET_LENGTH;
+                }
+                index += (handle + 1n) * multiplier;
+                multiplier *= BABEL_DIRECTORY_OBJECTS;
+            }
+
+            let bytes = [];
+            while (index > 0n) {
+                index--;
+                bytes.push(Number(index % 256n));
+                index /= 256n;
+            }
+
+            try {
+                const decodedText = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
+                document.getElementById('decodeResult').innerText = decodedText;
+            } catch (e) {
+                document.getElementById('decodeResult').innerText = "Decoded data as raw bytes (Non-UTF8 string):\n" + bytes.join(', ');
+            }
+        }
+
+        document.getElementById('alphabetConfig').addEventListener('input', () => { updateResult(); updateDecode(); });
+        document.getElementById('maxLengthConfig').addEventListener('input', () => { updateResult(); updateDecode(); });
+
         document.getElementById('textInput').addEventListener('input', (event) => {
             const text = event.target.value;
             document.getElementById('fileInput').value = ""; 
-            
             if (!text) {
                 currentBytes = null;
                 updateResult();
                 return;
             }
-
             currentBytes = new TextEncoder().encode(text);
             updateResult();
         });
 
-        // Event Listener for File Input
         document.getElementById('fileInput').addEventListener('change', async (event) => {
             const file = event.target.files[0];
             document.getElementById('textInput').value = ""; 
-
             if (!file) {
                 currentBytes = null;
                 updateResult();
                 return;
             }
-            
             document.getElementById('result').innerText = "Calculating...";
-
             const arrayBuffer = await file.arrayBuffer();
             currentBytes = new Uint8Array(arrayBuffer);
-            
             updateResult();
         });
+
+        document.getElementById('pathInput').addEventListener('input', updateDecode);
     </script>
 </body>
 </html>
