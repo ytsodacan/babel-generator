@@ -28,8 +28,6 @@
     min-height: 100vh;
   }
 
-  /* Hexagonal "shelf" lattice — the Library of Babel is built of identical
-     hexagonal galleries; the background is that lattice seen from above. */
   body {
     background-image:
       linear-gradient(30deg, var(--ink-raised) 12%, transparent 12.5%, transparent 87%, var(--ink-raised) 87.5%, var(--ink-raised)),
@@ -43,223 +41,92 @@
     background-color: var(--ink);
   }
 
-  .wrap {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 32px 16px;
-  }
+  .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
 
   .card {
     width: 100%;
-    max-width: 440px;
+    max-width: 460px;
     background: var(--ink-raised);
     border: 1px solid var(--ink-line);
     box-shadow: 0 24px 60px rgba(0,0,0,0.55);
     position: relative;
   }
 
-  /* Catalog-card index tab */
   .tab {
-    position: absolute;
-    top: -1px;
-    left: 28px;
-    background: var(--gold);
-    color: var(--ink);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    font-weight: 700;
-    padding: 4px 10px;
-    text-transform: uppercase;
+    position: absolute; top: -1px; left: 28px;
+    background: var(--gold); color: var(--ink);
+    font-size: 11px; letter-spacing: 0.12em; font-weight: 700;
+    padding: 4px 10px; text-transform: uppercase;
   }
 
-  .card-inner {
-    padding: 40px 28px 28px;
-  }
+  .card-inner { padding: 40px 28px 28px; }
 
-  .eyebrow {
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    color: var(--gold-dim);
-    text-transform: uppercase;
-    margin: 0 0 6px;
-  }
+  .eyebrow { font-size: 11px; letter-spacing: 0.16em; color: var(--gold-dim); text-transform: uppercase; margin: 0 0 6px; }
+  h1 { font-size: 22px; letter-spacing: 0.01em; margin: 0 0 4px; color: var(--parchment); font-weight: 700; }
+  .call-number { font-size: 12px; color: var(--parchment-dim); margin: 0 0 28px; border-bottom: 1px dashed var(--ink-line); padding-bottom: 20px; }
 
-  h1 {
-    font-size: 22px;
-    letter-spacing: 0.01em;
-    margin: 0 0 4px;
-    color: var(--parchment);
-    font-weight: 700;
-  }
+  .row { margin-bottom: 22px; }
+  .row label { display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--parchment-dim); margin-bottom: 10px; }
 
-  .call-number {
-    font-size: 12px;
-    color: var(--parchment-dim);
-    margin: 0 0 28px;
-    border-bottom: 1px dashed var(--ink-line);
-    padding-bottom: 20px;
-  }
-
-  .row {
-    margin-bottom: 22px;
-  }
-
-  .row label {
-    display: block;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--parchment-dim);
-    margin-bottom: 10px;
-  }
-
-  /* Mode toggle styled like two shelf tags */
-  .mode-toggle {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border: 1px solid var(--ink-line);
-  }
-
+  .mode-toggle { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--ink-line); }
   .mode-toggle button {
-    background: transparent;
-    border: none;
-    color: var(--parchment-dim);
-    font-family: inherit;
-    font-size: 13px;
-    letter-spacing: 0.04em;
-    padding: 12px 8px;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    background: transparent; border: none; border-right: 1px solid var(--ink-line);
+    color: var(--parchment-dim); font-family: inherit; font-size: 12px; letter-spacing: 0.02em;
+    padding: 12px 4px; cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
   }
+  .mode-toggle button:last-child { border-right: none; }
+  .mode-toggle button.active { background: var(--gold); color: var(--ink); font-weight: 700; }
+  .mode-toggle button:disabled, input:disabled, .connect-btn:disabled, .ghost-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  .mode-toggle button:first-child {
-    border-right: 1px solid var(--ink-line);
-  }
-
-  .mode-toggle button.active {
-    background: var(--gold);
-    color: var(--ink);
-    font-weight: 700;
-  }
-
-  .mode-toggle button:disabled,
-  input:disabled,
-  .connect-btn:disabled,
-  .ghost-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  .color-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
+  .color-row { display: flex; align-items: center; gap: 14px; }
   input[type="color"] {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 52px;
-    height: 40px;
-    background: none;
-    border: 1px solid var(--ink-line);
-    padding: 0;
-    cursor: pointer;
+    -webkit-appearance: none; appearance: none; width: 52px; height: 40px;
+    background: none; border: 1px solid var(--ink-line); padding: 0; cursor: pointer;
   }
   input[type="color"]::-webkit-color-swatch-wrapper { padding: 4px; }
   input[type="color"]::-webkit-color-swatch { border: none; }
 
-  .swatch-value {
-    font-size: 13px;
-    color: var(--parchment);
-    letter-spacing: 0.04em;
+  .swatch-value { font-size: 13px; color: var(--parchment); letter-spacing: 0.04em; }
+
+  input[type="range"] { width: 100%; accent-color: var(--gold); background: transparent; }
+  .interval-value { font-size: 13px; color: var(--gold); text-align: right; margin-top: 6px; }
+
+  input[type="text"] {
+    width: 100%; background: var(--ink); border: 1px solid var(--ink-line); color: var(--parchment);
+    font-family: inherit; font-size: 13px; padding: 10px 12px;
+  }
+  input[type="text"]:focus { outline: 1px solid var(--gold-dim); }
+
+  input[type="file"] { width: 100%; font-family: inherit; font-size: 12px; color: var(--parchment-dim); }
+
+  canvas#image-canvas {
+    display: block; margin-top: 12px; width: 100%; max-width: 320px; image-rendering: pixelated;
+    border: 1px solid var(--ink-line); background: #000;
   }
 
-  input[type="range"] {
-    width: 100%;
-    accent-color: var(--gold);
-    background: transparent;
-  }
-
-  .interval-value {
-    font-size: 13px;
-    color: var(--gold);
-    text-align: right;
-    margin-top: 6px;
-  }
-
-  .actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 30px;
-  }
+  .actions { display: flex; gap: 10px; margin-top: 30px; }
 
   .connect-btn, .ghost-btn, .apply-btn {
-    font-family: inherit;
-    font-size: 13px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 12px 16px;
-    border: 1px solid var(--gold-dim);
-    background: transparent;
-    color: var(--gold);
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-    flex: 1;
+    font-family: inherit; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 12px 16px; border: 1px solid var(--gold-dim); background: transparent; color: var(--gold);
+    cursor: pointer; transition: background 0.15s ease, color 0.15s ease; flex: 1;
   }
+  .connect-btn:hover:not(:disabled), .apply-btn:hover:not(:disabled) { background: var(--gold); color: var(--ink); }
 
-  .connect-btn:hover:not(:disabled),
-  .apply-btn:hover:not(:disabled) {
-    background: var(--gold);
-    color: var(--ink);
-  }
+  .ghost-btn { border-color: var(--ink-line); color: var(--parchment-dim); flex: 0 0 auto; }
+  .ghost-btn:hover:not(:disabled) { border-color: var(--parchment-dim); color: var(--parchment); }
 
-  .ghost-btn {
-    border-color: var(--ink-line);
-    color: var(--parchment-dim);
-    flex: 0 0 auto;
-  }
+  .apply-btn { width: 100%; margin-top: 14px; }
 
-  .ghost-btn:hover:not(:disabled) {
-    border-color: var(--parchment-dim);
-    color: var(--parchment);
-  }
-
-  .apply-btn {
-    width: 100%;
-    margin-top: 14px;
-  }
-
-  .status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--parchment-dim);
-    margin-top: 22px;
-  }
-
-  .status .dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--red);
-    flex: 0 0 auto;
-  }
-
+  .status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--parchment-dim); margin-top: 22px; }
+  .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex: 0 0 auto; }
   .status.online .dot { background: var(--teal); }
   .status.online { color: var(--teal); }
 
-  .footnote {
-    font-size: 11px;
-    color: var(--parchment-dim);
-    margin-top: 6px;
-    line-height: 1.5;
-  }
+  .footnote { font-size: 11px; color: var(--parchment-dim); margin-top: 6px; line-height: 1.5; }
 
   .hidden { display: none !important; }
+  .dim { opacity: 0.4; }
 </style>
 </head>
 <body>
@@ -277,6 +144,8 @@
         <div class="mode-toggle">
           <button id="mode-static" disabled>Static</button>
           <button id="mode-cycle" disabled>Cycle</button>
+          <button id="mode-text" disabled>Text</button>
+          <button id="mode-image" disabled>Image</button>
         </div>
       </div>
 
@@ -292,6 +161,26 @@
         <label>Cycle interval</label>
         <input type="range" id="interval" min="200" max="10000" step="100" value="2000" disabled>
         <div class="interval-value" id="interval-value">2000 ms</div>
+      </div>
+
+      <div class="row hidden" id="text-row">
+        <label>Scrolling text</label>
+        <input type="text" id="text-input" maxlength="128" placeholder="Type a message…" disabled>
+        <label style="margin-top:14px;">Text color</label>
+        <div class="color-row">
+          <input type="color" id="text-color-picker" value="#ffffff" disabled>
+          <span class="swatch-value" id="text-color-value">255, 255, 255</span>
+        </div>
+        <label style="margin-top:14px;">Scroll speed</label>
+        <input type="range" id="text-speed" min="1" max="10" step="1" value="4" disabled>
+        <div class="interval-value" id="text-speed-value">4</div>
+      </div>
+
+      <div class="row hidden" id="image-row">
+        <label>Image (auto-scaled to 160×80)</label>
+        <input type="file" id="image-input" accept="image/*" disabled>
+        <canvas id="image-canvas" width="160" height="80"></canvas>
+        <div class="interval-value" id="image-status"></div>
       </div>
 
       <button class="apply-btn" id="apply-btn" disabled>Apply &amp; Save</button>
@@ -312,16 +201,32 @@
 
 <script>
 (function () {
-  const VENDOR_ID = 0x303A;   // Espressif
-  const PRODUCT_ID = 0x4030;  // MTP (bit5) + VENDOR (bit4) | 0x4000, from usb_descriptors.c.h
-  const VENDOR_INTERFACE = 1; // ITF_NUM_VENDOR
+  const VENDOR_ID = 0x303A;
+  const PRODUCT_ID = 0x4030;
+  const VENDOR_INTERFACE = 1;
   const EP_OUT = 3;
   const EP_IN = 3;
 
-  const CMD_SET_SETTINGS = 0x01;
-  const CMD_GET_SETTINGS = 0x02;
+  // Protocol — firmware must implement these to match:
+  //   0x01 SET_SETTINGS  [mode, r, g, b, interval_lo, interval_hi]
+  //   0x02 GET_SETTINGS  -> echoes the same 7 bytes back (mode 0/1 packets)
+  //   0x03 SET_TEXT      [r, g, b, speed, len, ...utf8 bytes]
+  //   0x04 SET_IMAGE_START [w_lo, w_hi, h_lo, h_hi, total_len_lo, total_len_hi, total_len_hi2, total_len_hi3]
+  //   0x05 SET_IMAGE_CHUNK [seq_lo, seq_hi, ...up to 56 bytes of RGB565 data]
+  //   0x06 SET_IMAGE_END
+  const CMD_SET_SETTINGS   = 0x01;
+  const CMD_GET_SETTINGS   = 0x02;
+  const CMD_SET_TEXT       = 0x03;
+  const CMD_SET_IMAGE_START = 0x04;
+  const CMD_SET_IMAGE_CHUNK = 0x05;
+  const CMD_SET_IMAGE_END   = 0x06;
+
   const MODE_STATIC = 0;
-  const MODE_CYCLE = 1;
+  const MODE_CYCLE  = 1;
+  const MODE_TEXT   = 2;
+  const MODE_IMAGE  = 3;
+
+  const IMG_W = 160, IMG_H = 80;
 
   const els = {
     connect: document.getElementById('connect-btn'),
@@ -329,29 +234,46 @@
     apply: document.getElementById('apply-btn'),
     modeStatic: document.getElementById('mode-static'),
     modeCycle: document.getElementById('mode-cycle'),
+    modeText: document.getElementById('mode-text'),
+    modeImage: document.getElementById('mode-image'),
+    colorRow: document.getElementById('color-row'),
+    intervalRow: document.getElementById('interval-row'),
+    textRow: document.getElementById('text-row'),
+    imageRow: document.getElementById('image-row'),
     colorPicker: document.getElementById('color-picker'),
     colorValue: document.getElementById('color-value'),
     interval: document.getElementById('interval'),
     intervalValue: document.getElementById('interval-value'),
+    textInput: document.getElementById('text-input'),
+    textColorPicker: document.getElementById('text-color-picker'),
+    textColorValue: document.getElementById('text-color-value'),
+    textSpeed: document.getElementById('text-speed'),
+    textSpeedValue: document.getElementById('text-speed-value'),
+    imageInput: document.getElementById('image-input'),
+    imageCanvas: document.getElementById('image-canvas'),
+    imageStatus: document.getElementById('image-status'),
     status: document.getElementById('status'),
     statusText: document.getElementById('status-text'),
     supportNote: document.getElementById('support-note'),
   };
 
   let device = null;
-  let state = { mode: MODE_CYCLE, r: 255, g: 0, b: 0, interval: 2000 };
+  let state = {
+    mode: MODE_CYCLE,
+    r: 255, g: 0, b: 0, interval: 2000,
+    text: 'HELLO', textR: 255, textG: 255, textB: 255, textSpeed: 4,
+  };
+  let pendingImageRgb565 = null; // Uint16Array, IMG_W*IMG_H, set once an image is chosen
 
   function setSupportNote() {
     if (!('usb' in navigator)) {
-      els.supportNote.textContent =
-        'WebUSB is not available here. Open this file over http://localhost (not file://) in Chrome or Edge.';
+      els.supportNote.textContent = 'WebUSB is not available in this browser. Use Chrome or Edge.';
       els.connect.disabled = true;
     } else if (!window.isSecureContext) {
-      els.supportNote.textContent =
-        'This page needs a secure context — serve it via http://localhost or https://.';
+      els.supportNote.textContent = 'This page needs a secure context — serve it via http://localhost or https://.';
       els.connect.disabled = true;
     } else {
-      els.supportNote.textContent = 'Hold BOOT is not required — just plug in and connect.';
+      els.supportNote.textContent = 'If the chooser shows no devices: unplug/replug, close other tabs using it, then try again.';
     }
   }
 
@@ -361,61 +283,77 @@
   }
 
   function setControlsEnabled(enabled) {
-    [els.modeStatic, els.modeCycle, els.colorPicker, els.interval, els.apply, els.refresh]
+    [els.modeStatic, els.modeCycle, els.modeText, els.modeImage,
+     els.colorPicker, els.interval, els.textInput, els.textColorPicker,
+     els.textSpeed, els.imageInput, els.apply, els.refresh]
       .forEach(el => el.disabled = !enabled);
   }
 
   function hexToRgb(hex) {
     const v = hex.replace('#', '');
-    return {
-      r: parseInt(v.slice(0, 2), 16),
-      g: parseInt(v.slice(2, 4), 16),
-      b: parseInt(v.slice(4, 6), 16),
-    };
+    return { r: parseInt(v.slice(0,2),16), g: parseInt(v.slice(2,4),16), b: parseInt(v.slice(4,6),16) };
   }
-
   function rgbToHex(r, g, b) {
-    return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+    return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
   }
 
   function renderState() {
     els.modeStatic.classList.toggle('active', state.mode === MODE_STATIC);
     els.modeCycle.classList.toggle('active', state.mode === MODE_CYCLE);
+    els.modeText.classList.toggle('active', state.mode === MODE_TEXT);
+    els.modeImage.classList.toggle('active', state.mode === MODE_IMAGE);
+
+    els.colorRow.classList.toggle('hidden', state.mode !== MODE_STATIC);
+    els.intervalRow.classList.toggle('hidden', state.mode !== MODE_CYCLE);
+    els.textRow.classList.toggle('hidden', state.mode !== MODE_TEXT);
+    els.imageRow.classList.toggle('hidden', state.mode !== MODE_IMAGE);
+
     els.colorPicker.value = rgbToHex(state.r, state.g, state.b);
     els.colorValue.textContent = `${state.r}, ${state.g}, ${state.b}`;
     els.interval.value = state.interval;
     els.intervalValue.textContent = `${state.interval} ms`;
-    document.getElementById('color-row').style.opacity = state.mode === MODE_STATIC ? '1' : '0.4';
-    document.getElementById('interval-row').style.opacity = state.mode === MODE_CYCLE ? '1' : '0.4';
+
+    els.textInput.value = state.text;
+    els.textColorPicker.value = rgbToHex(state.textR, state.textG, state.textB);
+    els.textColorValue.textContent = `${state.textR}, ${state.textG}, ${state.textB}`;
+    els.textSpeed.value = state.textSpeed;
+    els.textSpeedValue.textContent = state.textSpeed;
   }
 
-  async function connect() {
-    try {
-      setStatus('Requesting device…', false);
-      device = await navigator.usb.requestDevice({
-        filters: [{ vendorId: VENDOR_ID, productId: PRODUCT_ID }]
+  // ---- connect ----------------------------------------------------------
+  // requestDevice() must be called synchronously from the click handler
+  // (no await before it) or Chrome can silently drop the user gesture and
+  // the chooser dialog either won't appear or the promise never settles.
+  function connect() {
+    if (!('usb' in navigator)) return;
+    setStatus('Requesting device…', false);
+    navigator.usb.requestDevice({ filters: [{ vendorId: VENDOR_ID, productId: PRODUCT_ID }] })
+      .then(async (dev) => {
+        device = dev;
+        await device.open();
+        if (device.configuration === null) await device.selectConfiguration(1);
+        await device.claimInterface(VENDOR_INTERFACE);
+        setStatus(`Connected — ${device.productName || 'USB of Babel'}`, true);
+        setControlsEnabled(true);
+        els.connect.textContent = 'Reconnect';
+        await readSettings();
+      })
+      .catch((err) => {
+        console.error(err);
+        if (err && err.name === 'NotFoundError') {
+          setStatus('No device selected / matched — check it\'s plugged in', false);
+        } else if (err && err.name === 'SecurityError') {
+          setStatus('Blocked — page must be served over https:// or http://localhost', false);
+        } else {
+          setStatus((err && err.message) || 'Connection failed', false);
+        }
+        setControlsEnabled(false);
       });
-      await device.open();
-      if (device.configuration === null) {
-        await device.selectConfiguration(1);
-      }
-      await device.claimInterface(VENDOR_INTERFACE);
-
-      setStatus(`Connected — ${device.productName || 'USB of Babel'}`, true);
-      setControlsEnabled(true);
-      els.connect.textContent = 'Reconnect';
-      await readSettings();
-    } catch (err) {
-      console.error(err);
-      setStatus(err.message || 'Connection failed', false);
-      setControlsEnabled(false);
-    }
   }
 
   async function writeBytes(bytes) {
     await device.transferOut(EP_OUT, new Uint8Array(bytes));
   }
-
   async function readBytes(length) {
     const result = await device.transferIn(EP_IN, length);
     return new Uint8Array(result.data.buffer);
@@ -427,11 +365,9 @@
       await writeBytes([CMD_GET_SETTINGS]);
       const resp = await readBytes(7);
       if (resp.length >= 7 && resp[0] === CMD_GET_SETTINGS) {
-        state = {
-          mode: resp[1],
-          r: resp[2], g: resp[3], b: resp[4],
-          interval: resp[5] | (resp[6] << 8),
-        };
+        state.mode = resp[1];
+        state.r = resp[2]; state.g = resp[3]; state.b = resp[4];
+        state.interval = resp[5] | (resp[6] << 8);
         renderState();
       }
       setStatus(`Connected — ${device.productName || 'USB of Babel'}`, true);
@@ -442,22 +378,94 @@
   }
 
   async function applySettings() {
-    const interval = Number(els.interval.value);
-    const packet = [
-      CMD_SET_SETTINGS,
-      state.mode,
-      state.r, state.g, state.b,
-      interval & 0xFF, (interval >> 8) & 0xFF,
-    ];
     try {
       setStatus('Writing…', true);
-      await writeBytes(packet);
-      state.interval = interval;
+
+      if (state.mode === MODE_TEXT) {
+        const bytes = Array.from(new TextEncoder().encode(state.textInputValue || state.text));
+        const packet = [CMD_SET_TEXT, state.textR, state.textG, state.textB, state.textSpeed, bytes.length, ...bytes];
+        await writeBytes(packet);
+      } else if (state.mode === MODE_IMAGE) {
+        if (!pendingImageRgb565) {
+          setStatus('Choose an image first', true);
+          return;
+        }
+        await sendImage(pendingImageRgb565);
+      } else {
+        const interval = Number(els.interval.value);
+        const packet = [CMD_SET_SETTINGS, state.mode, state.r, state.g, state.b, interval & 0xFF, (interval >> 8) & 0xFF];
+        await writeBytes(packet);
+        state.interval = interval;
+      }
+
       setStatus(`Connected — ${device.productName || 'USB of Babel'}`, true);
     } catch (err) {
       console.error(err);
       setStatus('Write failed', true);
     }
+  }
+
+  async function sendImage(rgb565) {
+    const totalBytes = rgb565.length * 2;
+    els.imageStatus.textContent = 'Sending image…';
+
+    const startPacket = new Uint8Array(9);
+    startPacket[0] = CMD_SET_IMAGE_START;
+    startPacket[1] = IMG_W & 0xFF; startPacket[2] = (IMG_W >> 8) & 0xFF;
+    startPacket[3] = IMG_H & 0xFF; startPacket[4] = (IMG_H >> 8) & 0xFF;
+    startPacket[5] = totalBytes & 0xFF;
+    startPacket[6] = (totalBytes >> 8) & 0xFF;
+    startPacket[7] = (totalBytes >> 16) & 0xFF;
+    startPacket[8] = (totalBytes >> 24) & 0xFF;
+    await writeBytes(startPacket);
+
+    const CHUNK_PX = 28; // 28 px * 2 bytes = 56 bytes + 3 header bytes = 59, under 64-byte EP
+    let seq = 0;
+    for (let i = 0; i < rgb565.length; i += CHUNK_PX) {
+      const slice = rgb565.subarray(i, Math.min(i + CHUNK_PX, rgb565.length));
+      const packet = new Uint8Array(3 + slice.length * 2);
+      packet[0] = CMD_SET_IMAGE_CHUNK;
+      packet[1] = seq & 0xFF;
+      packet[2] = (seq >> 8) & 0xFF;
+      for (let j = 0; j < slice.length; j++) {
+        packet[3 + j * 2] = slice[j] & 0xFF;
+        packet[3 + j * 2 + 1] = (slice[j] >> 8) & 0xFF;
+      }
+      await writeBytes(packet);
+      seq++;
+      if (seq % 20 === 0) els.imageStatus.textContent = `Sending image… ${Math.round((i / rgb565.length) * 100)}%`;
+    }
+
+    await writeBytes([CMD_SET_IMAGE_END]);
+    els.imageStatus.textContent = 'Image sent.';
+  }
+
+  function handleImageFile(file) {
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = els.imageCanvas;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, IMG_W, IMG_H);
+
+      // cover-fit into 160x80
+      const scale = Math.max(IMG_W / img.width, IMG_H / img.height);
+      const dw = img.width * scale, dh = img.height * scale;
+      const dx = (IMG_W - dw) / 2, dy = (IMG_H - dh) / 2;
+      ctx.drawImage(img, dx, dy, dw, dh);
+
+      const { data } = ctx.getImageData(0, 0, IMG_W, IMG_H);
+      const out = new Uint16Array(IMG_W * IMG_H);
+      for (let p = 0; p < IMG_W * IMG_H; p++) {
+        const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
+        out[p] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+      }
+      pendingImageRgb565 = out;
+      els.imageStatus.textContent = `Ready — ${IMG_W}×${IMG_H}, tap Apply & Save to send.`;
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
   }
 
   els.connect.addEventListener('click', connect);
@@ -466,16 +474,30 @@
 
   els.modeStatic.addEventListener('click', () => { state.mode = MODE_STATIC; renderState(); });
   els.modeCycle.addEventListener('click', () => { state.mode = MODE_CYCLE; renderState(); });
+  els.modeText.addEventListener('click', () => { state.mode = MODE_TEXT; renderState(); });
+  els.modeImage.addEventListener('click', () => { state.mode = MODE_IMAGE; renderState(); });
 
   els.colorPicker.addEventListener('input', (e) => {
     const { r, g, b } = hexToRgb(e.target.value);
     state.r = r; state.g = g; state.b = b;
     renderState();
   });
-
   els.interval.addEventListener('input', (e) => {
     els.intervalValue.textContent = `${e.target.value} ms`;
   });
+
+  els.textInput.addEventListener('input', (e) => { state.text = e.target.value; });
+  els.textColorPicker.addEventListener('input', (e) => {
+    const { r, g, b } = hexToRgb(e.target.value);
+    state.textR = r; state.textG = g; state.textB = b;
+    els.textColorValue.textContent = `${r}, ${g}, ${b}`;
+  });
+  els.textSpeed.addEventListener('input', (e) => {
+    state.textSpeed = Number(e.target.value);
+    els.textSpeedValue.textContent = e.target.value;
+  });
+
+  els.imageInput.addEventListener('change', (e) => handleImageFile(e.target.files[0]));
 
   setSupportNote();
   renderState();
