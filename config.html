@@ -68,11 +68,11 @@
   .row { margin-bottom: 22px; }
   .row label { display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--parchment-dim); margin-bottom: 10px; }
 
-  .mode-toggle { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--ink-line); }
+  .mode-toggle { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--ink-line); }
   .mode-toggle button {
     background: transparent; border: none; border-right: 1px solid var(--ink-line);
-    color: var(--parchment-dim); font-family: inherit; font-size: 12px; letter-spacing: 0.02em;
-    padding: 12px 4px; cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+    color: var(--parchment-dim); font-family: inherit; font-size: 11px; letter-spacing: 0.02em;
+    padding: 12px 2px; cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
   }
   .mode-toggle button:last-child { border-right: none; }
   .mode-toggle button.active { background: var(--gold); color: var(--ink); font-weight: 700; }
@@ -99,7 +99,7 @@
 
   input[type="file"] { width: 100%; font-family: inherit; font-size: 12px; color: var(--parchment-dim); }
 
-  canvas#image-canvas {
+  canvas#image-canvas, canvas#gif-canvas {
     display: block; margin-top: 12px; width: 100%; max-width: 320px; image-rendering: pixelated;
     border: 1px solid var(--ink-line); background: #000;
   }
@@ -146,6 +146,7 @@
           <button id="mode-cycle" disabled>Cycle</button>
           <button id="mode-text" disabled>Text</button>
           <button id="mode-image" disabled>Image</button>
+          <button id="mode-gif" disabled>GIF</button>
         </div>
       </div>
 
@@ -184,6 +185,13 @@
         <div class="interval-value" id="image-status"></div>
       </div>
 
+      <div class="row hidden" id="gif-row">
+        <label>GIF (auto-scaled to 160×80, decoded in-browser)</label>
+        <input type="file" id="gif-input" accept="image/gif" disabled>
+        <canvas id="gif-canvas" width="160" height="80"></canvas>
+        <div class="interval-value" id="gif-status"></div>
+      </div>
+
       <button class="apply-btn" id="apply-btn" disabled>Apply &amp; Save</button>
 
       <div class="actions">
@@ -215,22 +223,40 @@
   //   0x04 SET_IMAGE_START [w_lo, w_hi, h_lo, h_hi, total_len_lo, total_len_hi, total_len_hi2, total_len_hi3]
   //   0x05 SET_IMAGE_CHUNK [seq_lo, seq_hi, data_len, ...data_len bytes of RGB565 data]
   //   0x06 SET_IMAGE_END
+  //   0x07 SET_GIF_START       [frame_count_lo, frame_count_hi]
+  //   0x08 SET_GIF_FRAME_START [idx_lo, idx_hi, delay_lo, delay_hi, w_lo, w_hi, h_lo, h_hi, total_lo..total_hi3]
+  //   0x09 SET_GIF_FRAME_CHUNK [seq_lo, seq_hi, data_len, ...data_len bytes of RGB565 data]
+  //   0x0A SET_GIF_FRAME_END
+  //   0x0B SET_GIF_END
+  // GIFs are uploaded frame-by-frame (same START/CHUNK*/END shape as a
+  // single image, repeated per frame) since the firmware writes each
+  // frame straight to the SD card rather than holding the whole sequence
+  // in RAM. See src/webusb.c on the device for the matching handlers.
   const CMD_SET_SETTINGS   = 0x01;
   const CMD_GET_SETTINGS   = 0x02;
   const CMD_SET_TEXT       = 0x03;
   const CMD_SET_IMAGE_START = 0x04;
   const CMD_SET_IMAGE_CHUNK = 0x05;
   const CMD_SET_IMAGE_END   = 0x06;
+  const CMD_SET_GIF_START       = 0x07;
+  const CMD_SET_GIF_FRAME_START = 0x08;
+  const CMD_SET_GIF_FRAME_CHUNK = 0x09;
+  const CMD_SET_GIF_FRAME_END   = 0x0A;
+  const CMD_SET_GIF_END         = 0x0B;
 
   const MODE_STATIC = 0;
   const MODE_CYCLE  = 1;
   const MODE_TEXT   = 2;
   const MODE_IMAGE  = 3;
+  const MODE_GIF    = 4;
 
   // Must match WEBUSB_TEXT_MAX_LEN - 1 in include/webusb.h. txt_len travels
   // in a single uint8_t on the wire, so anything longer wraps that byte and
   // desyncs the firmware's command-framing accumulator.
   const TEXT_MAX_BYTES = 57;
+
+  // Must match WEBUSB_GIF_MAX_FRAMES in include/webusb.h.
+  const GIF_MAX_FRAMES = 60;
 
   const IMG_W = 160, IMG_H = 80;
 
@@ -242,10 +268,12 @@
     modeCycle: document.getElementById('mode-cycle'),
     modeText: document.getElementById('mode-text'),
     modeImage: document.getElementById('mode-image'),
+    modeGif: document.getElementById('mode-gif'),
     colorRow: document.getElementById('color-row'),
     intervalRow: document.getElementById('interval-row'),
     textRow: document.getElementById('text-row'),
     imageRow: document.getElementById('image-row'),
+    gifRow: document.getElementById('gif-row'),
     colorPicker: document.getElementById('color-picker'),
     colorValue: document.getElementById('color-value'),
     interval: document.getElementById('interval'),
@@ -259,6 +287,9 @@
     imageInput: document.getElementById('image-input'),
     imageCanvas: document.getElementById('image-canvas'),
     imageStatus: document.getElementById('image-status'),
+    gifInput: document.getElementById('gif-input'),
+    gifCanvas: document.getElementById('gif-canvas'),
+    gifStatus: document.getElementById('gif-status'),
     status: document.getElementById('status'),
     statusText: document.getElementById('status-text'),
     supportNote: document.getElementById('support-note'),
@@ -271,6 +302,8 @@
     text: 'HELLO', textR: 255, textG: 255, textB: 255, textSpeed: 4,
   };
   let pendingImageRgb565 = null; // Uint16Array, IMG_W*IMG_H, set once an image is chosen
+  let pendingGifFrames = null;   // [{ delay, rgb565: Uint16Array }], set once a GIF is decoded
+  let gifPreviewTimer = null;
 
   function setSupportNote() {
     if (!('usb' in navigator)) {
@@ -290,9 +323,9 @@
   }
 
   function setControlsEnabled(enabled) {
-    [els.modeStatic, els.modeCycle, els.modeText, els.modeImage,
+    [els.modeStatic, els.modeCycle, els.modeText, els.modeImage, els.modeGif,
      els.colorPicker, els.interval, els.textInput, els.textColorPicker,
-     els.textSpeed, els.imageInput, els.apply, els.refresh]
+     els.textSpeed, els.imageInput, els.gifInput, els.apply, els.refresh]
       .forEach(el => el.disabled = !enabled);
   }
 
@@ -315,11 +348,13 @@
     els.modeCycle.classList.toggle('active', state.mode === MODE_CYCLE);
     els.modeText.classList.toggle('active', state.mode === MODE_TEXT);
     els.modeImage.classList.toggle('active', state.mode === MODE_IMAGE);
+    els.modeGif.classList.toggle('active', state.mode === MODE_GIF);
 
     els.colorRow.classList.toggle('hidden', state.mode !== MODE_STATIC);
     els.intervalRow.classList.toggle('hidden', state.mode !== MODE_CYCLE);
     els.textRow.classList.toggle('hidden', state.mode !== MODE_TEXT);
     els.imageRow.classList.toggle('hidden', state.mode !== MODE_IMAGE);
+    els.gifRow.classList.toggle('hidden', state.mode !== MODE_GIF);
 
     els.colorPicker.value = rgbToHex(state.r, state.g, state.b);
     els.colorValue.textContent = `${state.r}, ${state.g}, ${state.b}`;
@@ -408,6 +443,12 @@
           return;
         }
         await sendImage(pendingImageRgb565);
+      } else if (state.mode === MODE_GIF) {
+        if (!pendingGifFrames || !pendingGifFrames.length) {
+          setStatus('Choose a GIF first', true);
+          return;
+        }
+        await sendGif(pendingGifFrames);
       } else {
         const interval = Number(els.interval.value);
         const packet = [CMD_SET_SETTINGS, state.mode, state.r, state.g, state.b, interval & 0xFF, (interval >> 8) & 0xFF];
@@ -463,6 +504,343 @@
     els.imageStatus.textContent = 'Image sent.';
   }
 
+  // ---- GIF: decode, resize, upload --------------------------------------
+
+  // Minimal GIF89a decoder -- header, global/local color tables, graphic
+  // control extensions (delay/disposal/transparency), LZW decompression,
+  // and interlacing. Deliberately dependency-free so this page stays a
+  // single static file that works over file:// or any static host with no
+  // build step. Returns { width, height, frames: [{ delay, imageData }] }
+  // where imageData is a full-logical-screen RGBA Uint8ClampedArray with
+  // disposal already applied, ready to draw straight onto a canvas.
+  function parseGIF(buf) {
+    const data = new Uint8Array(buf);
+    let p = 0;
+    function u8() { return data[p++]; }
+    function u16() { const v = data[p] | (data[p + 1] << 8); p += 2; return v; }
+
+    if (String.fromCharCode(data[0], data[1], data[2]) !== 'GIF') {
+      throw new Error('Not a GIF file');
+    }
+    p = 6;
+    const width = u16();
+    const height = u16();
+    const packed = u8();
+    const gctFlag = (packed & 0x80) !== 0;
+    const gctSize = 2 << (packed & 0x07);
+    u8(); // background color index -- unused, we always composite on transparent black
+    u8(); // pixel aspect ratio -- unused, panel is a fixed 160x80 anyway
+
+    let gct = null;
+    if (gctFlag) {
+      gct = new Uint8Array(gctSize * 3);
+      for (let i = 0; i < gctSize * 3; i++) gct[i] = u8();
+    }
+
+    function readSubBlocks() {
+      const bytes = [];
+      while (true) {
+        const size = u8();
+        if (!size) break;
+        for (let i = 0; i < size; i++) bytes.push(u8());
+      }
+      return new Uint8Array(bytes);
+    }
+
+    // Variable-width LZW as used by GIF (not the same as TIFF/PDF LZW --
+    // codes start at minCodeSize+1 bits and grow as the dictionary fills).
+    function lzwDecode(minCodeSize, bytes) {
+      const CLEAR = 1 << minCodeSize;
+      const END = CLEAR + 1;
+      let codeSize, dict;
+      function resetDict() {
+        dict = [];
+        for (let i = 0; i < CLEAR; i++) dict[i] = [i];
+        dict[CLEAR] = [];
+        dict[END] = [];
+        codeSize = minCodeSize + 1;
+      }
+      resetDict();
+
+      const out = [];
+      let bitBuf = 0, bitLen = 0, bp = 0, prevCode = -1;
+
+      function nextCode() {
+        while (bitLen < codeSize) {
+          if (bp >= bytes.length) return END;
+          bitBuf |= bytes[bp++] << bitLen;
+          bitLen += 8;
+        }
+        const code = bitBuf & ((1 << codeSize) - 1);
+        bitBuf >>= codeSize;
+        bitLen -= codeSize;
+        return code;
+      }
+
+      while (true) {
+        const code = nextCode();
+        if (code === CLEAR) { resetDict(); prevCode = -1; continue; }
+        if (code === END) break;
+
+        let entry;
+        if (dict[code]) {
+          entry = dict[code];
+        } else if (code === dict.length && prevCode !== -1) {
+          entry = dict[prevCode].concat([dict[prevCode][0]]);
+        } else {
+          break; // corrupt stream -- bail rather than spin forever
+        }
+
+        for (let i = 0; i < entry.length; i++) out.push(entry[i]);
+
+        if (prevCode !== -1 && dict.length < 4096) {
+          dict.push(dict[prevCode].concat([entry[0]]));
+          if (dict.length === (1 << codeSize) && codeSize < 12) codeSize++;
+        }
+        prevCode = code;
+      }
+      return out;
+    }
+
+    // Maps "the Nth row decoded" to its real Y position for GIF's 4-pass
+    // interlacing (every 8th row starting at 0, then at 4, then every 4th
+    // starting at 2, then every 2nd starting at 1).
+    function interlacedRow(row, h) {
+      const pass1 = Math.ceil(h / 8);
+      const pass2 = Math.ceil((h - 4) / 8);
+      const pass3 = Math.ceil((h - 2) / 4);
+      if (row < pass1) return row * 8;
+      row -= pass1;
+      if (row < pass2) return row * 8 + 4;
+      row -= pass2;
+      if (row < pass3) return row * 4 + 2;
+      row -= pass3;
+      return row * 2 + 1;
+    }
+
+    const frames = [];
+    const canvas = new Uint8ClampedArray(width * height * 4);
+    let prevCanvas = null; // snapshot for disposal method 3 ("restore to previous")
+
+    let gcDelay = 100, gcTransparentIndex = -1, gcDisposal = 0, haveGC = false;
+
+    while (p < data.length) {
+      const sep = u8();
+      if (sep === 0x21) { // extension
+        const label = u8();
+        if (label === 0xF9) { // graphic control extension
+          u8(); // block size, always 4
+          const flags = u8();
+          gcDisposal = (flags >> 2) & 0x07;
+          const transparentFlag = (flags & 0x01) !== 0;
+          gcDelay = u16() * 10; // GIF stores delay in hundredths of a second
+          const transIdx = u8();
+          gcTransparentIndex = transparentFlag ? transIdx : -1;
+          if (gcDelay === 0) gcDelay = 100; // many encoders write 0 to mean "as fast as possible"
+          haveGC = true;
+          u8(); // block terminator
+        } else {
+          readSubBlocks(); // comment / application / plain text -- not needed for playback
+        }
+      } else if (sep === 0x2C) { // image descriptor
+        const imgLeft = u16(), imgTop = u16(), imgW = u16(), imgH = u16();
+        const imgPacked = u8();
+        const lctFlag = (imgPacked & 0x80) !== 0;
+        const interlaced = (imgPacked & 0x40) !== 0;
+        const lctSize = 2 << (imgPacked & 0x07);
+
+        let lct = null;
+        if (lctFlag) {
+          lct = new Uint8Array(lctSize * 3);
+          for (let i = 0; i < lctSize * 3; i++) lct[i] = u8();
+        }
+        const activeTable = lct || gct;
+
+        const minCodeSize = u8();
+        const indices = lzwDecode(minCodeSize, readSubBlocks());
+
+        if (gcDisposal === 3) prevCanvas = canvas.slice();
+
+        let idx = 0;
+        for (let row = 0; row < imgH; row++) {
+          const y = interlaced ? interlacedRow(row, imgH) : row;
+          for (let col = 0; col < imgW; col++) {
+            const colorIdx = indices[idx++];
+            if (colorIdx === undefined || colorIdx === gcTransparentIndex || !activeTable) continue;
+            const py = imgTop + y, px = imgLeft + col;
+            if (px < 0 || px >= width || py < 0 || py >= height) continue;
+            const o = (py * width + px) * 4, c = colorIdx * 3;
+            canvas[o] = activeTable[c];
+            canvas[o + 1] = activeTable[c + 1];
+            canvas[o + 2] = activeTable[c + 2];
+            canvas[o + 3] = 255;
+          }
+        }
+
+        frames.push({ delay: haveGC ? gcDelay : 100, imageData: canvas.slice() });
+
+        if (gcDisposal === 2) { // restore to background -- clear the region this frame covered
+          for (let row = 0; row < imgH; row++) {
+            for (let col = 0; col < imgW; col++) {
+              const o = ((imgTop + row) * width + (imgLeft + col)) * 4;
+              canvas[o] = 0; canvas[o + 1] = 0; canvas[o + 2] = 0; canvas[o + 3] = 0;
+            }
+          }
+        } else if (gcDisposal === 3 && prevCanvas) {
+          canvas.set(prevCanvas);
+        }
+
+        haveGC = false;
+        gcDisposal = 0;
+        gcTransparentIndex = -1;
+      } else if (sep === 0x3B) { // trailer
+        break;
+      } else {
+        break; // unknown/corrupt block -- stop rather than loop forever
+      }
+    }
+
+    if (!frames.length) throw new Error('GIF has no image frames');
+    return { width, height, frames };
+  }
+
+  // Resizes one decoded (native-resolution) RGBA frame down to 160x80
+  // using the same cover-fit crop as the still-image path, and converts
+  // it straight to RGB565 -- the format the firmware stores and displays.
+  function frameToRgb565(imageDataRGBA, srcW, srcH) {
+    const off = document.createElement('canvas');
+    off.width = srcW; off.height = srcH;
+    off.getContext('2d').putImageData(new ImageData(imageDataRGBA, srcW, srcH), 0, 0);
+
+    const out = document.createElement('canvas');
+    out.width = IMG_W; out.height = IMG_H;
+    const octx = out.getContext('2d');
+    const scale = Math.max(IMG_W / srcW, IMG_H / srcH);
+    const dw = srcW * scale, dh = srcH * scale;
+    const dx = (IMG_W - dw) / 2, dy = (IMG_H - dh) / 2;
+    octx.clearRect(0, 0, IMG_W, IMG_H);
+    octx.drawImage(off, dx, dy, dw, dh);
+
+    const { data } = octx.getImageData(0, 0, IMG_W, IMG_H);
+    const rgb565 = new Uint16Array(IMG_W * IMG_H);
+    for (let i = 0; i < IMG_W * IMG_H; i++) {
+      const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+      rgb565[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+    }
+    return rgb565;
+  }
+
+  // Animates the already-resized frames on gif-canvas so there's a
+  // preview of what the panel will actually show, respecting each
+  // frame's own delay rather than a fixed interval.
+  function renderGifPreview(frames) {
+    if (gifPreviewTimer) { clearTimeout(gifPreviewTimer); gifPreviewTimer = null; }
+    if (!frames || !frames.length) return;
+
+    const ctx = els.gifCanvas.getContext('2d');
+    let i = 0;
+    function drawFrame() {
+      const f = frames[i];
+      const imgData = ctx.createImageData(IMG_W, IMG_H);
+      for (let p = 0; p < IMG_W * IMG_H; p++) {
+        const px = f.rgb565[p];
+        const r = (px >> 11) & 0x1F, g = (px >> 5) & 0x3F, b = px & 0x1F;
+        imgData.data[p * 4]     = Math.round((r * 255) / 31);
+        imgData.data[p * 4 + 1] = Math.round((g * 255) / 63);
+        imgData.data[p * 4 + 2] = Math.round((b * 255) / 31);
+        imgData.data[p * 4 + 3] = 255;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      i = (i + 1) % frames.length;
+      gifPreviewTimer = setTimeout(drawFrame, Math.max(f.delay, 20));
+    }
+    drawFrame();
+  }
+
+  function handleGifFile(file) {
+    if (!file) return;
+    pendingGifFrames = null;
+    els.gifStatus.textContent = 'Decoding GIF…';
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = parseGIF(reader.result);
+        let frames = parsed.frames;
+        const truncated = frames.length > GIF_MAX_FRAMES;
+        if (truncated) frames = frames.slice(0, GIF_MAX_FRAMES);
+
+        pendingGifFrames = frames.map(f => ({
+          delay: Math.max(20, Math.min(f.delay, 65535)), // clamp to a sane range; delay travels as a uint16 ms field on the wire
+          rgb565: frameToRgb565(f.imageData, parsed.width, parsed.height),
+        }));
+
+        renderGifPreview(pendingGifFrames);
+        els.gifStatus.textContent = truncated
+          ? `GIF has ${parsed.frames.length} frames — using first ${GIF_MAX_FRAMES} (device limit). Tap Apply & Save to send.`
+          : `Ready — ${pendingGifFrames.length} frames, tap Apply & Save to send.`;
+      } catch (err) {
+        console.error(err);
+        pendingGifFrames = null;
+        els.gifStatus.textContent = 'Could not decode that GIF — try a different file.';
+      }
+    };
+    reader.onerror = () => { els.gifStatus.textContent = 'Failed to read the file.'; };
+    reader.readAsArrayBuffer(file);
+  }
+
+  async function sendGif(frames) {
+    els.gifStatus.textContent = 'Sending GIF…';
+
+    const startPacket = new Uint8Array(3);
+    startPacket[0] = CMD_SET_GIF_START;
+    startPacket[1] = frames.length & 0xFF;
+    startPacket[2] = (frames.length >> 8) & 0xFF;
+    await writeBytes(startPacket);
+
+    const CHUNK_PX = 28; // matches sendImage's chunk size, stays under the 64-byte USB packet
+
+    for (let idx = 0; idx < frames.length; idx++) {
+      const { delay, rgb565 } = frames[idx];
+      const totalBytes = rgb565.length * 2;
+
+      const frameStart = new Uint8Array(13);
+      frameStart[0] = CMD_SET_GIF_FRAME_START;
+      frameStart[1] = idx & 0xFF; frameStart[2] = (idx >> 8) & 0xFF;
+      frameStart[3] = delay & 0xFF; frameStart[4] = (delay >> 8) & 0xFF;
+      frameStart[5] = IMG_W & 0xFF; frameStart[6] = (IMG_W >> 8) & 0xFF;
+      frameStart[7] = IMG_H & 0xFF; frameStart[8] = (IMG_H >> 8) & 0xFF;
+      frameStart[9]  = totalBytes & 0xFF;
+      frameStart[10] = (totalBytes >> 8) & 0xFF;
+      frameStart[11] = (totalBytes >> 16) & 0xFF;
+      frameStart[12] = (totalBytes >> 24) & 0xFF;
+      await writeBytes(frameStart);
+
+      let seq = 0;
+      for (let i = 0; i < rgb565.length; i += CHUNK_PX) {
+        const slice = rgb565.subarray(i, Math.min(i + CHUNK_PX, rgb565.length));
+        const dataLen = slice.length * 2;
+        const packet = new Uint8Array(4 + dataLen);
+        packet[0] = CMD_SET_GIF_FRAME_CHUNK;
+        packet[1] = seq & 0xFF;
+        packet[2] = (seq >> 8) & 0xFF;
+        packet[3] = dataLen & 0xFF;
+        for (let j = 0; j < slice.length; j++) {
+          packet[4 + j * 2] = slice[j] & 0xFF;
+          packet[4 + j * 2 + 1] = (slice[j] >> 8) & 0xFF;
+        }
+        await writeBytes(packet);
+        seq++;
+      }
+
+      await writeBytes([CMD_SET_GIF_FRAME_END]);
+      els.gifStatus.textContent = `Sending GIF… frame ${idx + 1}/${frames.length}`;
+    }
+
+    await writeBytes([CMD_SET_GIF_END]);
+    els.gifStatus.textContent = 'GIF sent.';
+  }
+
   function handleImageFile(file) {
     if (!file) return;
     const img = new Image();
@@ -499,6 +877,7 @@
   els.modeCycle.addEventListener('click', () => { state.mode = MODE_CYCLE; renderState(); });
   els.modeText.addEventListener('click', () => { state.mode = MODE_TEXT; renderState(); });
   els.modeImage.addEventListener('click', () => { state.mode = MODE_IMAGE; renderState(); });
+  els.modeGif.addEventListener('click', () => { state.mode = MODE_GIF; renderState(); });
 
   els.colorPicker.addEventListener('input', (e) => {
     const { r, g, b } = hexToRgb(e.target.value);
@@ -524,6 +903,7 @@
   });
 
   els.imageInput.addEventListener('change', (e) => handleImageFile(e.target.files[0]));
+  els.gifInput.addEventListener('change', (e) => handleGifFile(e.target.files[0]));
 
   setSupportNote();
   renderState();
