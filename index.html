@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library of Babel - Path Generator</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+        .input-group { margin-bottom: 20px; }
+        textarea { width: 100%; padding: 10px; box-sizing: border-box; }
+        .output { 
+            margin-top: 20px; 
+            padding: 15px;
+            background: #f4f4f4; 
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            word-break: break-all; 
+            font-family: monospace; 
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Generate Path</h2>
+    
+    <div class="input-group">
+        <h3>From Text</h3>
+        <textarea id="textInput" rows="4" placeholder="Type something here..."></textarea>
+    </div>
+
+    <div class="input-group">
+        <h3>From File</h3>
+        <input type="file" id="fileInput">
+    </div>
+    
+    <div class="output" id="result">Waiting for input...</div>
+
+    <script>
+        const BABEL_MAX_NAME_LENGTH = 2n;
+        const BABEL_ALPHABET_LENGTH = 74n;
+        const BABEL_DIRECTORY_OBJECTS = BABEL_ALPHABET_LENGTH ** BABEL_MAX_NAME_LENGTH;
+
+        const alphabet = [
+          'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+          'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+          'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+          'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+          'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+          'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+          'w', 'x', 'y', 'z', '0', '1', '2', '3',
+          '4', '5', '6', '7', '8', '9', '!', ' ',
+          '&', '(', ')', '-', '_', '+', '[', ']',
+          '^', '='
+        ];
+
+        function generatePathFromBytes(bytes) {
+            let index = 0n;
+            for (let i = 0; i < bytes.length; i++) {
+                index += (BigInt(bytes[i]) + 1n) * (256n ** BigInt(i));
+            }
+
+            let path = "";
+
+            while (index > 0n) {
+                index--;
+                let handle = index % BABEL_DIRECTORY_OBJECTS;
+                
+                for (let i = 0n; i < BABEL_MAX_NAME_LENGTH; i++) {
+                    path = alphabet[Number(handle % BABEL_ALPHABET_LENGTH)] + path;
+                    handle /= BABEL_ALPHABET_LENGTH;
+                }
+                path = "/" + path;
+                index /= BABEL_DIRECTORY_OBJECTS;
+            }
+
+            return path === "" ? "/" : path;
+        }
+
+        document.getElementById('textInput').addEventListener('input', (event) => {
+            const text = event.target.value;
+            document.getElementById('fileInput').value = ""; 
+            
+            if (!text) {
+                document.getElementById('result').innerText = "Waiting for input...";
+                return;
+            }
+
+            const bytes = new TextEncoder().encode(text);
+            document.getElementById('result').innerText = generatePathFromBytes(bytes);
+        });
+
+        document.getElementById('fileInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            document.getElementById('textInput').value = ""; 
+
+            if (!file) return;
+            
+            document.getElementById('result').innerText = "Calculating...";
+
+            const arrayBuffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            
+            document.getElementById('result').innerText = generatePathFromBytes(bytes);
+        });
+    </script>
+</body>
+</html>
