@@ -17,6 +17,15 @@
         .decode-output { background: #251e1e; border: 1px solid #5c3b3b; color: #f66464; }
         .flex-container { display: flex; gap: 20px; }
         .flex-child { flex: 1; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; font-size: 0.85em; color: #888; }
+        .stats-card { background: #161616; padding: 10px; border-left: 3px solid #444; }
+        .stats-card span { display: block; color: #fff; font-size: 1.1em; margin-top: 2px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        button { background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 8px 15px; font-family: Courier, monospace; cursor: pointer; }
+        button:hover { background: #3a3a3a; border-color: #666; }
+        .history-box { margin-top: 20px; font-size: 0.85em; max-height: 150px; overflow-y: auto; background: #151515; padding: 10px; border: 1px solid #222; }
+        .history-item { padding: 4px 0; border-bottom: 1px solid #222; cursor: pointer; display: flex; justify-content: space-between; }
+        .history-item:hover { color: #fff; }
         @media (max-width: 600px) { .flex-container { flex-direction: column; } }
     </style>
 </head>
@@ -24,66 +33,91 @@
     <h2>Library of Babel Generator / Decoder</h2>
     
     <div class="config-group">
-        <h3>Configuration</h3>
-        <label for="alphabetConfig">Alphabet string:</label>
-        <input type="text" id="alphabetConfig" value="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789! &()-_+[^]=">
-        <label for="maxLengthConfig">Max Name Length:</label>
-        <input type="number" id="maxLengthConfig" value="2" min="1">
+        <h3>System Diagnostics</h3>
+        <div class="stats-grid">
+            <div class="stats-card">Alphabet Matrix Size<span id="statAlpha">70</span></div>
+            <div class="stats-card">Permutations Node Depth<span id="statLength">2</span></div>
+            <div class="stats-card">Directory Address Multiplier<span id="statObjects">4900</span></div>
+            <div class="stats-card">Entropy / Byte Processing Payload<span id="statPayload">0 bytes</span></div>
+        </div>
     </div>
 
     <div class="flex-container">
         <div class="flex-child">
-            <h3>Encode Input</h3>
+            <h3>Encode Input Matrix</h3>
             <div class="input-group">
-                <label for="textInput">From Text:</label>
-                <textarea id="textInput" rows="4" placeholder="Type text to convert to path..."></textarea>
+                <label for="textInput">From Text Element:</label>
+                <textarea id="textInput" rows="4" placeholder="Type text to absolute-map into the library structure..."></textarea>
             </div>
             <div class="input-group">
-                <label for="fileInput">From File:</label>
+                <label for="fileInput">From Binary Stream File Object:</label>
                 <input type="file" id="fileInput">
+            </div>
+            <div class="btn-group">
+                <button id="clearEncode">Purge Encoder</button>
+                <button id="randomText">Inject Random Entropy</button>
             </div>
         </div>
         
         <div class="flex-child">
-            <h3>Decode Input</h3>
+            <h3>Decode Input Coordinate</h3>
             <div class="input-group">
-                <label for="pathInput">From Path:</label>
-                <textarea id="pathInput" rows="4" placeholder="/AAAA/BBBB..."></textarea>
+                <label for="pathInput">From Absolute Path Address Matrix:</label>
+                <textarea id="pathInput" rows="4" placeholder="Hexa-hex/base70 node paths (e.g., /A /A! or /A!/A!)"></textarea>
+            </div>
+            <div class="btn-group">
+                <button id="clearDecode">Purge Decoder</button>
+                <button id="copyPath">Extract Active Coordinates</button>
             </div>
         </div>
     </div>
     
     <div class="output-box">
-        <h3>Generated Path</h3>
+        <h3>Calculated Library Space Address Mapping</h3>
         <div class="output" id="result">Waiting for input...</div>
     </div>
 
     <div class="output-box">
-        <h3>Decoded Content</h3>
+        <h3>Decoded Real-Space Content Manifestation</h3>
         <div class="output decode-output" id="decodeResult">Waiting for path...</div>
     </div>
 
+    <h3>Local Coordinate Search Cache</h3>
+    <div class="history-box" id="historyLog"></div>
+
     <script>
+        const BABEL_MAX_NAME_LENGTH = 2n;
+        const BABEL_ALPHABET_LENGTH = 70n;
+        const BABEL_DIRECTORY_OBJECTS = BABEL_ALPHABET_LENGTH ** BABEL_MAX_NAME_LENGTH;
+
+        const alphabet = [
+          'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+          'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+          'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+          'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+          'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+          'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+          'w', 'x', 'y', 'z', '0', '1', '2', '3',
+          '4', '5', '6', '7', '8', '9', '!', ' ',
+          '&', '(', ')', '-', '_', '+', '[', ']',
+          '^', '='
+        ];
+
         let currentBytes = null;
+        let history = [];
 
         function updateResult() {
-            if (!currentBytes) {
+            if (!currentBytes || currentBytes.length === 0) {
                 document.getElementById('result').innerText = "Waiting for input...";
+                document.getElementById('statPayload').innerText = "0 bytes";
                 return;
             }
-            const alphabetStr = document.getElementById('alphabetConfig').value;
-            if (alphabetStr.length === 0) {
-                document.getElementById('result').innerText = "Error: Alphabet cannot be empty.";
-                return;
-            }
-            const alphabet = alphabetStr.split('');
-            const BABEL_ALPHABET_LENGTH = BigInt(alphabet.length);
-            const BABEL_MAX_NAME_LENGTH = BigInt(document.getElementById('maxLengthConfig').value);
-            const BABEL_DIRECTORY_OBJECTS = BABEL_ALPHABET_LENGTH ** BABEL_MAX_NAME_LENGTH;
+
+            document.getElementById('statPayload').innerText = `${currentBytes.length} bytes (${(currentBytes.length * 8)} bits)`;
 
             let index = 0n;
-            for (let i = 0; i < currentBytes.length; i++) {
-                index += (BigInt(currentBytes[i]) + 1n) * (256n ** BigInt(i));
+            for (let i = 0n; i < BigInt(currentBytes.length); i++) {
+                index += (BigInt(currentBytes[Number(i)]) + 1n) * (256n ** i);
             }
 
             let path = "";
@@ -97,7 +131,10 @@
                 path = "/" + path;
                 index /= BABEL_DIRECTORY_OBJECTS;
             }
-            document.getElementById('result').innerText = path === "" ? "/" : path;
+
+            const finalPath = path === "" ? "/" : path;
+            document.getElementById('result').innerText = finalPath;
+            pushHistory(finalPath, 'Encode');
         }
 
         function updateDecode() {
@@ -106,15 +143,6 @@
                 document.getElementById('decodeResult').innerText = "Waiting for path...";
                 return;
             }
-            const alphabetStr = document.getElementById('alphabetConfig').value;
-            if (alphabetStr.length === 0) {
-                document.getElementById('decodeResult').innerText = "Error: Alphabet cannot be empty.";
-                return;
-            }
-            const alphabet = alphabetStr.split('');
-            const BABEL_ALPHABET_LENGTH = BigInt(alphabet.length);
-            const BABEL_MAX_NAME_LENGTH = BigInt(document.getElementById('maxLengthConfig').value);
-            const BABEL_DIRECTORY_OBJECTS = BABEL_ALPHABET_LENGTH ** BABEL_MAX_NAME_LENGTH;
 
             const segments = path.split('/').filter(s => s.length > 0);
             let index = 0n;
@@ -123,7 +151,7 @@
             for (let s = segments.length - 1; s >= 0; s--) {
                 const segment = segments[s];
                 if (BigInt(segment.length) !== BABEL_MAX_NAME_LENGTH) {
-                    document.getElementById('decodeResult').innerText = "Error: Segment length does not match configuration.";
+                    document.getElementById('decodeResult').innerText = `CRITICAL FAILURE: Spatial integrity fault. Path segment sequence size must dynamically match standard array node depth allocation constraint exactly (${BABEL_MAX_NAME_LENGTH} chars). Fragment "${segment}" holds ${segment.length}.`;
                     return;
                 }
                 let handle = 0n;
@@ -132,7 +160,7 @@
                     const char = segment[i];
                     const charIndex = alphabet.indexOf(char);
                     if (charIndex === -1) {
-                        document.getElementById('decodeResult').innerText = `Error: Character '${char}' not found in configuration alphabet.`;
+                        document.getElementById('decodeResult').innerText = `ALPHABET BOUND VIOLATION: Coordinate contains symbol character element '${char}' outside defined 70-character dimensional space matrix limits. Extraction terminated.`;
                         return;
                     }
                     handle += BigInt(charIndex) * segmentMultiplier;
@@ -152,13 +180,33 @@
             try {
                 const decodedText = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
                 document.getElementById('decodeResult').innerText = decodedText;
+                pushHistory(path, 'Decode');
             } catch (e) {
-                document.getElementById('decodeResult').innerText = "Decoded data as raw bytes (Non-UTF8 string):\n" + bytes.join(', ');
+                document.getElementById('decodeResult').innerText = "Raw Structural Payload Hex Array Buffer output (Structural UTF-8 conversion verification anomaly detected):\n\n" + bytes.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
             }
         }
 
-        document.getElementById('alphabetConfig').addEventListener('input', () => { updateResult(); updateDecode(); });
-        document.getElementById('maxLengthConfig').addEventListener('input', () => { updateResult(); updateDecode(); });
+        function pushHistory(item, operation) {
+            if (history.includes(item)) return;
+            history.unshift(item);
+            if (history.length > 10) history.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const hBox = document.getElementById('historyLog');
+            hBox.innerHTML = '';
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerText = item.substring(0, 80) + (item.length > 80 ? '...' : '');
+                div.addEventListener('click', () => {
+                    document.getElementById('pathInput').value = item;
+                    updateDecode();
+                });
+                hBox.appendChild(div);
+            });
+        }
 
         document.getElementById('textInput').addEventListener('input', (event) => {
             const text = event.target.value;
@@ -180,13 +228,43 @@
                 updateResult();
                 return;
             }
-            document.getElementById('result').innerText = "Calculating...";
+            document.getElementById('result').innerText = "Calculating Quantum Space Allocation Matrices...";
             const arrayBuffer = await file.arrayBuffer();
             currentBytes = new Uint8Array(arrayBuffer);
             updateResult();
         });
 
         document.getElementById('pathInput').addEventListener('input', updateDecode);
+
+        document.getElementById('clearEncode').addEventListener('click', () => {
+            document.getElementById('textInput').value = "";
+            document.getElementById('fileInput').value = "";
+            currentBytes = null;
+            updateResult();
+        });
+
+        document.getElementById('clearDecode').addEventListener('click', () => {
+            document.getElementById('pathInput').value = "";
+            updateDecode();
+        });
+
+        document.getElementById('copyPath').addEventListener('click', () => {
+            const pathText = document.getElementById('result').innerText;
+            if (pathText && pathText !== "Waiting for input..." && pathText !== "/") {
+                navigator.clipboard.writeText(pathText);
+            }
+        });
+
+        document.getElementById('randomText').addEventListener('click', () => {
+            const len = Math.floor(Math.random() * 20) + 5;
+            let str = "";
+            for(let i=0; i<len; i++) {
+                str += alphabet[Math.floor(Math.random() * alphabet.length)];
+            }
+            document.getElementById('textInput').value = str;
+            currentBytes = new TextEncoder().encode(str);
+            updateResult();
+        });
     </script>
 </body>
 </html>
