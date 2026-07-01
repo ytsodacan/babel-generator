@@ -165,7 +165,8 @@
 
       <div class="row hidden" id="text-row">
         <label>Scrolling text</label>
-        <input type="text" id="text-input" maxlength="128" placeholder="Type a message…" disabled>
+        <input type="text" id="text-input" maxlength="57" placeholder="Type a message…" disabled>
+        <div class="interval-value" id="text-length-value" style="text-align:left; color: var(--parchment-dim);"></div>
         <label style="margin-top:14px;">Text color</label>
         <div class="color-row">
           <input type="color" id="text-color-picker" value="#ffffff" disabled>
@@ -212,7 +213,7 @@
   //   0x02 GET_SETTINGS  -> echoes the same 7 bytes back (mode 0/1 packets)
   //   0x03 SET_TEXT      [r, g, b, speed, len, ...utf8 bytes]
   //   0x04 SET_IMAGE_START [w_lo, w_hi, h_lo, h_hi, total_len_lo, total_len_hi, total_len_hi2, total_len_hi3]
-  //   0x05 SET_IMAGE_CHUNK [seq_lo, seq_hi, ...up to 56 bytes of RGB565 data]
+  //   0x05 SET_IMAGE_CHUNK [seq_lo, seq_hi, data_len, ...data_len bytes of RGB565 data]
   //   0x06 SET_IMAGE_END
   const CMD_SET_SETTINGS   = 0x01;
   const CMD_GET_SETTINGS   = 0x02;
@@ -225,6 +226,11 @@
   const MODE_CYCLE  = 1;
   const MODE_TEXT   = 2;
   const MODE_IMAGE  = 3;
+
+  // Must match WEBUSB_TEXT_MAX_LEN - 1 in include/webusb.h. txt_len travels
+  // in a single uint8_t on the wire, so anything longer wraps that byte and
+  // desyncs the firmware's command-framing accumulator.
+  const TEXT_MAX_BYTES = 57;
 
   const IMG_W = 160, IMG_H = 80;
 
@@ -245,6 +251,7 @@
     interval: document.getElementById('interval'),
     intervalValue: document.getElementById('interval-value'),
     textInput: document.getElementById('text-input'),
+    textLengthValue: document.getElementById('text-length-value'),
     textColorPicker: document.getElementById('text-color-picker'),
     textColorValue: document.getElementById('text-color-value'),
     textSpeed: document.getElementById('text-speed'),
@@ -297,6 +304,12 @@
     return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
   }
 
+  function updateTextLengthHint() {
+    const bytes = new TextEncoder().encode(state.text).length;
+    els.textLengthValue.textContent = `${bytes} / ${TEXT_MAX_BYTES} bytes`;
+    els.textLengthValue.style.color = bytes > TEXT_MAX_BYTES ? 'var(--red)' : 'var(--parchment-dim)';
+  }
+
   function renderState() {
     els.modeStatic.classList.toggle('active', state.mode === MODE_STATIC);
     els.modeCycle.classList.toggle('active', state.mode === MODE_CYCLE);
@@ -314,6 +327,7 @@
     els.intervalValue.textContent = `${state.interval} ms`;
 
     els.textInput.value = state.text;
+    updateTextLengthHint();
     els.textColorPicker.value = rgbToHex(state.textR, state.textG, state.textB);
     els.textColorValue.textContent = `${state.textR}, ${state.textG}, ${state.textB}`;
     els.textSpeed.value = state.textSpeed;
@@ -382,7 +396,10 @@
       setStatus('Writing…', true);
 
       if (state.mode === MODE_TEXT) {
-        const bytes = Array.from(new TextEncoder().encode(state.textInputValue || state.text));
+        let bytes = Array.from(new TextEncoder().encode(state.text));
+        if (bytes.length > TEXT_MAX_BYTES) {
+          bytes = bytes.slice(0, TEXT_MAX_BYTES);
+        }
         const packet = [CMD_SET_TEXT, state.textR, state.textG, state.textB, state.textSpeed, bytes.length, ...bytes];
         await writeBytes(packet);
       } else if (state.mode === MODE_IMAGE) {
@@ -419,17 +436,23 @@
     startPacket[8] = (totalBytes >> 24) & 0xFF;
     await writeBytes(startPacket);
 
-    const CHUNK_PX = 28; // 28 px * 2 bytes = 56 bytes + 3 header bytes = 59, under 64-byte EP
+    const CHUNK_PX = 28; // 28 px * 2 bytes = 56 bytes + 4 header bytes = 60, under 64-byte EP
     let seq = 0;
     for (let i = 0; i < rgb565.length; i += CHUNK_PX) {
       const slice = rgb565.subarray(i, Math.min(i + CHUNK_PX, rgb565.length));
-      const packet = new Uint8Array(3 + slice.length * 2);
+      const dataLen = slice.length * 2;
+      // Header is [cmd, seq_lo, seq_hi, data_len] -- the firmware's
+      // handle_set_image_chunk() reads data_len from buf[3] and the pixel
+      // bytes starting at buf[4], so this field can't be dropped even
+      // though sequence + USB ordering alone would tell us enough.
+      const packet = new Uint8Array(4 + dataLen);
       packet[0] = CMD_SET_IMAGE_CHUNK;
       packet[1] = seq & 0xFF;
       packet[2] = (seq >> 8) & 0xFF;
+      packet[3] = dataLen & 0xFF;
       for (let j = 0; j < slice.length; j++) {
-        packet[3 + j * 2] = slice[j] & 0xFF;
-        packet[3 + j * 2 + 1] = (slice[j] >> 8) & 0xFF;
+        packet[4 + j * 2] = slice[j] & 0xFF;
+        packet[4 + j * 2 + 1] = (slice[j] >> 8) & 0xFF;
       }
       await writeBytes(packet);
       seq++;
@@ -486,7 +509,10 @@
     els.intervalValue.textContent = `${e.target.value} ms`;
   });
 
-  els.textInput.addEventListener('input', (e) => { state.text = e.target.value; });
+  els.textInput.addEventListener('input', (e) => {
+    state.text = e.target.value;
+    updateTextLengthHint();
+  });
   els.textColorPicker.addEventListener('input', (e) => {
     const { r, g, b } = hexToRgb(e.target.value);
     state.textR = r; state.textG = g; state.textB = b;
