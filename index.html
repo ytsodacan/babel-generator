@@ -3,19 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Library of Babel - Path Generator</title>
+    <title>Library of Babel - Custom Path Generator</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
         .input-group { margin-bottom: 20px; }
-        textarea { width: 100%; padding: 10px; box-sizing: border-box; }
+        .config-group { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; margin-top: 10px; }
+        input[type="text"], input[type="number"], textarea { width: 100%; padding: 8px; box-sizing: border-box; }
         .output { 
             margin-top: 20px; 
             padding: 15px;
-            background: #f4f4f4; 
-            border: 1px solid #ddd;
+            background: #eef4ff; 
+            border: 1px solid #c2d6ff;
             border-radius: 4px;
             word-break: break-all; 
             font-family: monospace; 
+            font-size: 1.1em;
             min-height: 20px;
         }
     </style>
@@ -23,6 +26,16 @@
 <body>
     <h2>Generate Path</h2>
     
+    <div class="config-group">
+        <h3>Configuration</h3>
+        
+        <label for="alphabetConfig">Alphabet string (Calculates length automatically):</label>
+        <input type="text" id="alphabetConfig" value="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789! &()-_+">
+        
+        <label for="maxLengthConfig">Max Name Length:</label>
+        <input type="number" id="maxLengthConfig" value="2" min="1">
+    </div>
+
     <div class="input-group">
         <h3>From Text</h3>
         <textarea id="textInput" rows="4" placeholder="Type something here..."></textarea>
@@ -36,27 +49,31 @@
     <div class="output" id="result">Waiting for input...</div>
 
     <script>
-        const BABEL_MAX_NAME_LENGTH = 2n;
-        const BABEL_ALPHABET_LENGTH = 74n;
-        const BABEL_DIRECTORY_OBJECTS = BABEL_ALPHABET_LENGTH ** BABEL_MAX_NAME_LENGTH;
+        // Store current bytes to allow dynamic re-calculation if config changes
+        let currentBytes = null;
 
-        const alphabet = [
-          'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-          'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-          'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
-          'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
-          'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-          'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
-          'w', 'x', 'y', 'z', '0', '1', '2', '3',
-          '4', '5', '6', '7', '8', '9', '!', ' ',
-          '&', '(', ')', '-', '_', '+', '[', ']',
-          '^', '='
-        ];
+        function updateResult() {
+            if (!currentBytes) {
+                document.getElementById('result').innerText = "Waiting for input...";
+                return;
+            }
 
-        function generatePathFromBytes(bytes) {
+            // Fetch live config values
+            const alphabetStr = document.getElementById('alphabetConfig').value;
+            if (alphabetStr.length === 0) {
+                document.getElementById('result').innerText = "Error: Alphabet cannot be empty.";
+                return;
+            }
+
+            const alphabet = alphabetStr.split('');
+            const BABEL_ALPHABET_LENGTH = BigInt(alphabet.length);
+            const BABEL_MAX_NAME_LENGTH = BigInt(document.getElementById('maxLengthConfig').value);
+            const BABEL_DIRECTORY_OBJECTS = BABEL_ALPHABET_LENGTH ** BABEL_MAX_NAME_LENGTH;
+
+            // Calculate path
             let index = 0n;
-            for (let i = 0; i < bytes.length; i++) {
-                index += (BigInt(bytes[i]) + 1n) * (256n ** BigInt(i));
+            for (let i = 0; i < currentBytes.length; i++) {
+                index += (BigInt(currentBytes[i]) + 1n) * (256n ** BigInt(i));
             }
 
             let path = "";
@@ -73,34 +90,45 @@
                 index /= BABEL_DIRECTORY_OBJECTS;
             }
 
-            return path === "" ? "/" : path;
+            document.getElementById('result').innerText = path === "" ? "/" : path;
         }
 
+        // Event Listeners for Configuration Changes
+        document.getElementById('alphabetConfig').addEventListener('input', updateResult);
+        document.getElementById('maxLengthConfig').addEventListener('input', updateResult);
+
+        // Event Listener for Text Input
         document.getElementById('textInput').addEventListener('input', (event) => {
             const text = event.target.value;
             document.getElementById('fileInput').value = ""; 
             
             if (!text) {
-                document.getElementById('result').innerText = "Waiting for input...";
+                currentBytes = null;
+                updateResult();
                 return;
             }
 
-            const bytes = new TextEncoder().encode(text);
-            document.getElementById('result').innerText = generatePathFromBytes(bytes);
+            currentBytes = new TextEncoder().encode(text);
+            updateResult();
         });
 
+        // Event Listener for File Input
         document.getElementById('fileInput').addEventListener('change', async (event) => {
             const file = event.target.files[0];
             document.getElementById('textInput').value = ""; 
 
-            if (!file) return;
+            if (!file) {
+                currentBytes = null;
+                updateResult();
+                return;
+            }
             
             document.getElementById('result').innerText = "Calculating...";
 
             const arrayBuffer = await file.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
+            currentBytes = new Uint8Array(arrayBuffer);
             
-            document.getElementById('result').innerText = generatePathFromBytes(bytes);
+            updateResult();
         });
     </script>
 </body>
