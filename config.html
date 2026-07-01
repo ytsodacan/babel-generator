@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catalog — USB of Babel</title>
+<style>
+  :root {
+    --ink: #0b0c0d;
+    --ink-raised: #15171a;
+    --ink-line: #2a2d31;
+    --parchment: #e8e2d0;
+    --parchment-dim: #9a9486;
+    --gold: #c7a24a;
+    --gold-dim: #8a7133;
+    --teal: #3f7a76;
+    --red: #b3523f;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--ink);
+    color: var(--parchment);
+    font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
+    min-height: 100vh;
+  }
+
+  /* Hexagonal "shelf" lattice — the Library of Babel is built of identical
+     hexagonal galleries; the background is that lattice seen from above. */
+  body {
+    background-image:
+      linear-gradient(30deg, var(--ink-raised) 12%, transparent 12.5%, transparent 87%, var(--ink-raised) 87.5%, var(--ink-raised)),
+      linear-gradient(150deg, var(--ink-raised) 12%, transparent 12.5%, transparent 87%, var(--ink-raised) 87.5%, var(--ink-raised)),
+      linear-gradient(30deg, var(--ink-raised) 12%, transparent 12.5%, transparent 87%, var(--ink-raised) 87.5%, var(--ink-raised)),
+      linear-gradient(150deg, var(--ink-raised) 12%, transparent 12.5%, transparent 87%, var(--ink-raised) 87.5%, var(--ink-raised)),
+      linear-gradient(60deg, #101214 25%, transparent 25.5%, transparent 75%, #101214 75%, #101214),
+      linear-gradient(60deg, #101214 25%, transparent 25.5%, transparent 75%, #101214 75%, #101214);
+    background-size: 64px 112px;
+    background-position: 0 0, 0 0, 32px 56px, 32px 56px, 0 0, 32px 56px;
+    background-color: var(--ink);
+  }
+
+  .wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--ink-raised);
+    border: 1px solid var(--ink-line);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    position: relative;
+  }
+
+  /* Catalog-card index tab */
+  .tab {
+    position: absolute;
+    top: -1px;
+    left: 28px;
+    background: var(--gold);
+    color: var(--ink);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    padding: 4px 10px;
+    text-transform: uppercase;
+  }
+
+  .card-inner {
+    padding: 40px 28px 28px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin: 0 0 6px;
+  }
+
+  h1 {
+    font-size: 22px;
+    letter-spacing: 0.01em;
+    margin: 0 0 4px;
+    color: var(--parchment);
+    font-weight: 700;
+  }
+
+  .call-number {
+    font-size: 12px;
+    color: var(--parchment-dim);
+    margin: 0 0 28px;
+    border-bottom: 1px dashed var(--ink-line);
+    padding-bottom: 20px;
+  }
+
+  .row {
+    margin-bottom: 22px;
+  }
+
+  .row label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--parchment-dim);
+    margin-bottom: 10px;
+  }
+
+  /* Mode toggle styled like two shelf tags */
+  .mode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid var(--ink-line);
+  }
+
+  .mode-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--parchment-dim);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .mode-toggle button:first-child {
+    border-right: 1px solid var(--ink-line);
+  }
+
+  .mode-toggle button.active {
+    background: var(--gold);
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .mode-toggle button:disabled,
+  input:disabled,
+  .connect-btn:disabled,
+  .ghost-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 52px;
+    height: 40px;
+    background: none;
+    border: 1px solid var(--ink-line);
+    padding: 0;
+    cursor: pointer;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 4px; }
+  input[type="color"]::-webkit-color-swatch { border: none; }
+
+  .swatch-value {
+    font-size: 13px;
+    color: var(--parchment);
+    letter-spacing: 0.04em;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--gold);
+    background: transparent;
+  }
+
+  .interval-value {
+    font-size: 13px;
+    color: var(--gold);
+    text-align: right;
+    margin-top: 6px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+  }
+
+  .connect-btn, .ghost-btn, .apply-btn {
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    border: 1px solid var(--gold-dim);
+    background: transparent;
+    color: var(--gold);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    flex: 1;
+  }
+
+  .connect-btn:hover:not(:disabled),
+  .apply-btn:hover:not(:disabled) {
+    background: var(--gold);
+    color: var(--ink);
+  }
+
+  .ghost-btn {
+    border-color: var(--ink-line);
+    color: var(--parchment-dim);
+    flex: 0 0 auto;
+  }
+
+  .ghost-btn:hover:not(:disabled) {
+    border-color: var(--parchment-dim);
+    color: var(--parchment);
+  }
+
+  .apply-btn {
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--parchment-dim);
+    margin-top: 22px;
+  }
+
+  .status .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--red);
+    flex: 0 0 auto;
+  }
+
+  .status.online .dot { background: var(--teal); }
+  .status.online { color: var(--teal); }
+
+  .footnote {
+    font-size: 11px;
+    color: var(--parchment-dim);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="card">
+    <div class="tab">DISPLAY.CFG</div>
+    <div class="card-inner">
+      <p class="eyebrow">USB of Babel</p>
+      <h1>Display Settings</h1>
+      <p class="call-number">Gallery 04 / Shelf B — connect over USB to read or rewrite the current volume.</p>
+
+      <div class="row">
+        <label>Mode</label>
+        <div class="mode-toggle">
+          <button id="mode-static" disabled>Static</button>
+          <button id="mode-cycle" disabled>Cycle</button>
+        </div>
+      </div>
+
+      <div class="row" id="color-row">
+        <label>Static color</label>
+        <div class="color-row">
+          <input type="color" id="color-picker" value="#ff0000" disabled>
+          <span class="swatch-value" id="color-value">255, 0, 0</span>
+        </div>
+      </div>
+
+      <div class="row" id="interval-row">
+        <label>Cycle interval</label>
+        <input type="range" id="interval" min="200" max="10000" step="100" value="2000" disabled>
+        <div class="interval-value" id="interval-value">2000 ms</div>
+      </div>
+
+      <button class="apply-btn" id="apply-btn" disabled>Apply &amp; Save</button>
+
+      <div class="actions">
+        <button class="connect-btn" id="connect-btn">Connect device</button>
+        <button class="ghost-btn" id="refresh-btn" disabled>Reread</button>
+      </div>
+
+      <div class="status" id="status">
+        <span class="dot"></span>
+        <span id="status-text">Not connected</span>
+      </div>
+      <p class="footnote" id="support-note"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const VENDOR_ID = 0x303A;   // Espressif
+  const PRODUCT_ID = 0x4030;  // MTP (bit5) + VENDOR (bit4) | 0x4000, from usb_descriptors.c.h
+  const VENDOR_INTERFACE = 1; // ITF_NUM_VENDOR
+  const EP_OUT = 3;
+  const EP_IN = 3;
+
+  const CMD_SET_SETTINGS = 0x01;
+  const CMD_GET_SETTINGS = 0x02;
+  const MODE_STATIC = 0;
+  const MODE_CYCLE = 1;
+
+  const els = {
+    connect: document.getElementById('connect-btn'),
+    refresh: document.getElementById('refresh-btn'),
+    apply: document.getElementById('apply-btn'),
+    modeStatic: document.getElementById('mode-static'),
+    modeCycle: document.getElementById('mode-cycle'),
+    colorPicker: document.getElementById('color-picker'),
+    colorValue: document.getElementById('color-value'),
+    interval: document.getElementById('interval'),
+    intervalValue: document.getElementById('interval-value'),
+    status: document.getElementById('status'),
+    statusText: document.getElementById('status-text'),
+    supportNote: document.getElementById('support-note'),
+  };
+
+  let device = null;
+  let state = { mode: MODE_CYCLE, r: 255, g: 0, b: 0, interval: 2000 };
+
+  function setSupportNote() {
+    if (!('usb' in navigator)) {
+      els.supportNote.textContent =
+        'WebUSB is not available here. Open this file over http://localhost (not file://) in Chrome or Edge.';
+      els.connect.disabled = true;
+    } else if (!window.isSecureContext) {
+      els.supportNote.textContent =
+        'This page needs a secure context — serve it via http://localhost or https://.';
+      els.connect.disabled = true;
+    } else {
+      els.supportNote.textContent = 'Hold BOOT is not required — just plug in and connect.';
+    }
+  }
+
+  function setStatus(text, online) {
+    els.statusText.textContent = text;
+    els.status.classList.toggle('online', !!online);
+  }
+
+  function setControlsEnabled(enabled) {
+    [els.modeStatic, els.modeCycle, els.colorPicker, els.interval, els.apply, els.refresh]
+      .forEach(el => el.disabled = !enabled);
+  }
+
+  function hexToRgb(hex) {
+    const v = hex.replace('#', '');
+    return {
+      r: parseInt(v.slice(0, 2), 16),
+      g: parseInt(v.slice(2, 4), 16),
+      b: parseInt(v.slice(4, 6), 16),
+    };
+  }
+
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+  }
+
+  function renderState() {
+    els.modeStatic.classList.toggle('active', state.mode === MODE_STATIC);
+    els.modeCycle.classList.toggle('active', state.mode === MODE_CYCLE);
+    els.colorPicker.value = rgbToHex(state.r, state.g, state.b);
+    els.colorValue.textContent = `${state.r}, ${state.g}, ${state.b}`;
+    els.interval.value = state.interval;
+    els.intervalValue.textContent = `${state.interval} ms`;
+    document.getElementById('color-row').style.opacity = state.mode === MODE_STATIC ? '1' : '0.4';
+    document.getElementById('interval-row').style.opacity = state.mode === MODE_CYCLE ? '1' : '0.4';
+  }
+
+  async function connect() {
+    try {
+      setStatus('Requesting device…', false);
+      device = await navigator.usb.requestDevice({
+        filters: [{ vendorId: VENDOR_ID, productId: PRODUCT_ID }]
+      });
+      await device.open();
+      if (device.configuration === null) {
+        await device.selectConfiguration(1);
+      }
+      await device.claimInterface(VENDOR_INTERFACE);
+
+      setStatus(`Connected — ${device.productName || 'USB of Babel'}`, true);
+      setControlsEnabled(true);
+      els.connect.textContent = 'Reconnect';
+      await readSettings();
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message || 'Connection failed', false);
+      setControlsEnabled(false);
+    }
+  }
+
+  async function writeBytes(bytes) {
+    await device.transferOut(EP_OUT, new Uint8Array(bytes));
+  }
+
+  async function readBytes(length) {
+    const result = await device.transferIn(EP_IN, length);
+    return new Uint8Array(result.data.buffer);
+  }
+
+  async function readSettings() {
+    try {
+      setStatus('Reading…', true);
+      await writeBytes([CMD_GET_SETTINGS]);
+      const resp = await readBytes(7);
+      if (resp.length >= 7 && resp[0] === CMD_GET_SETTINGS) {
+        state = {
+          mode: resp[1],
+          r: resp[2], g: resp[3], b: resp[4],
+          interval: resp[5] | (resp[6] << 8),
+        };
+        renderState();
+      }
+      setStatus(`Connected — ${device.productName || 'USB of Babel'}`, true);
+    } catch (err) {
+      console.error(err);
+      setStatus('Read failed — try Reread', true);
+    }
+  }
+
+  async function applySettings() {
+    const interval = Number(els.interval.value);
+    const packet = [
+      CMD_SET_SETTINGS,
+      state.mode,
+      state.r, state.g, state.b,
+      interval & 0xFF, (interval >> 8) & 0xFF,
+    ];
+    try {
+      setStatus('Writing…', true);
+      await writeBytes(packet);
+      state.interval = interval;
+      setStatus(`Connected — ${device.productName || 'USB of Babel'}`, true);
+    } catch (err) {
+      console.error(err);
+      setStatus('Write failed', true);
+    }
+  }
+
+  els.connect.addEventListener('click', connect);
+  els.refresh.addEventListener('click', readSettings);
+  els.apply.addEventListener('click', applySettings);
+
+  els.modeStatic.addEventListener('click', () => { state.mode = MODE_STATIC; renderState(); });
+  els.modeCycle.addEventListener('click', () => { state.mode = MODE_CYCLE; renderState(); });
+
+  els.colorPicker.addEventListener('input', (e) => {
+    const { r, g, b } = hexToRgb(e.target.value);
+    state.r = r; state.g = g; state.b = b;
+    renderState();
+  });
+
+  els.interval.addEventListener('input', (e) => {
+    els.intervalValue.textContent = `${e.target.value} ms`;
+  });
+
+  setSupportNote();
+  renderState();
+})();
+</script>
+
+</body>
+</html>
